@@ -108,3 +108,41 @@ export interface Notification {
   read_status: boolean;
   created_at: string;
 }
+
+export interface ResourceRef {
+  resource_type: string;
+  resource_id: number | string;
+}
+
+export interface DependencyEdge {
+  from_resource: ResourceRef;
+  to_resource: ResourceRef;
+  dependency_type: string;
+  metadata?: Record<string, any>;
+}
+
+export interface DependencyGraphData {
+  edges: DependencyEdge[];
+}
+
+export interface DependencyItem {
+  type: string;
+  id: string;
+  dependency_type: string;
+  metadata?: Record<string, any>;
+}
+
+export interface SurgeryDependencyTree {
+  id: string;
+  type: string;
+  dependencies: DependencyItem[];
+}
+
+export interface ResourceImpactAnalysis {
+  resource: ResourceRef;
+  direct_affected: ResourceRef[];
+  cascading_affected: ResourceRef[];
+  reverse_affected: ResourceRef[];
+  affected_surgeries: ResourceRef[];
+}
+

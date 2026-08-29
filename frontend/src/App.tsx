@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
+
 import { 
   LayoutDashboard, Activity, Users, ClipboardList, Package, 
-  AlertTriangle, BarChart3, MessageSquare, Settings, LogOut, Bell, User as UserIcon
+  BarChart3, MessageSquare, Settings, LogOut, Bell, User as UserIcon
 } from 'lucide-react';
+
 import { api } from './services/api';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -190,18 +192,18 @@ function DashboardLayout() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-slate-100">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0">
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm">
         <div>
           {/* Logo */}
-          <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-            <div className="bg-hospital-600 p-2 rounded-lg text-white font-bold flex items-center justify-center">
+          <div className="p-6 border-b border-slate-200 flex items-center gap-3">
+            <div className="bg-hospital-600 p-2 rounded-lg text-white font-bold flex items-center justify-center shadow-md">
               FC
             </div>
             <div>
-              <h1 className="font-bold text-lg text-white leading-tight">FlowCare AI</h1>
-              <span className="text-xs text-hospital-400 font-semibold tracking-wider uppercase">twin engine</span>
+              <h1 className="font-bold text-lg text-slate-900 leading-tight">FlowCare AI</h1>
+              <span className="text-xs text-hospital-600 font-semibold tracking-wider uppercase">twin engine</span>
             </div>
           </div>
           
@@ -216,8 +218,8 @@ function DashboardLayout() {
                   to={item.path}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                     isActive 
-                      ? 'bg-hospital-600 text-white shadow-lg shadow-hospital-900/30' 
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-hospital-600 text-white shadow-md shadow-hospital-600/20 font-semibold' 
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
                   <Icon size={18} />
@@ -229,19 +231,19 @@ function DashboardLayout() {
         </div>
 
         {/* User profile / Logout */}
-        <div className="p-4 border-t border-slate-800 space-y-3">
+        <div className="p-4 border-t border-slate-200 space-y-3 bg-slate-50/50">
           <div className="flex items-center gap-3 px-2">
-            <div className="bg-slate-800 p-2 rounded-full text-slate-300">
+            <div className="bg-slate-200 p-2 rounded-full text-slate-700">
               <UserIcon size={18} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
-              <p className="text-xs text-slate-400 font-mono truncate">{user?.role}</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">{user?.name}</p>
+              <p className="text-xs text-slate-500 font-mono truncate">{user?.role}</p>
             </div>
           </div>
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-rose-400 hover:bg-rose-950/20 hover:text-rose-300 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-all border border-rose-200/60"
           >
             <LogOut size={16} />
             <span>Sign Out</span>
@@ -252,10 +254,10 @@ function DashboardLayout() {
       {/* Main Content Pane */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-8 shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 shadow-sm">
           <div className="flex items-center gap-3">
             <div className={`w-2.5 h-2.5 rounded-full ${wsStatus === 'open' ? 'bg-emerald-500 animate-pulse' : wsStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'}`} />
-            <span className="text-xs text-slate-400 uppercase font-mono">
+            <span className="text-xs text-slate-600 uppercase font-mono font-semibold">
               Live Stream: {wsStatus === 'open' ? 'CONNECTED' : wsStatus === 'connecting' ? 'CONNECTING...' : 'DISCONNECTED'}
             </span>
           </div>
@@ -264,45 +266,45 @@ function DashboardLayout() {
           <div className="relative">
             <button 
               onClick={() => setShowNotifMenu(!showNotifMenu)}
-              className="p-2 bg-slate-800 rounded-lg text-slate-300 hover:text-white relative hover:bg-slate-700 transition-all"
+              className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 hover:text-slate-900 relative hover:bg-slate-200 transition-all"
             >
               <Bell size={18} />
               {activeNotifs.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white font-bold text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-900">
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white font-bold text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
                   {activeNotifs.length}
                 </span>
               )}
             </button>
 
             {showNotifMenu && (
-              <div className="absolute right-0 mt-2 w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-                  <h3 className="font-semibold text-white">Role Notifications ({user?.role})</h3>
-                  <span className="text-[10px] font-mono bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">RBAC Active</span>
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden text-slate-800">
+                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                  <h3 className="font-semibold text-slate-900">Role Notifications ({user?.role})</h3>
+                  <span className="text-[10px] font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">RBAC Active</span>
                 </div>
-                <div className="max-h-72 overflow-y-auto divide-y divide-slate-700">
+                <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
                   {activeNotifs.length === 0 ? (
                     <div className="p-6 text-center text-slate-500 text-xs">
                       No unread alerts for your role.
                     </div>
                   ) : (
                     activeNotifs.map(n => (
-                      <div key={n.id} className="p-4 hover:bg-slate-750/30 transition-all space-y-1">
+                      <div key={n.id} className="p-4 hover:bg-slate-50 transition-all space-y-1">
                         <div className="flex justify-between items-start gap-2">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                            n.severity === 'CRITICAL' ? 'bg-rose-950 text-rose-400 border border-rose-800' : 'bg-amber-950 text-amber-400 border border-amber-800'
+                            n.severity === 'CRITICAL' ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
                           }`}>
                             {n.severity}
                           </span>
                           <button 
                             onClick={() => handleReadNotif(n.id)}
-                            className="text-[10px] text-hospital-400 hover:text-hospital-300 font-semibold"
+                            className="text-[10px] text-hospital-600 hover:text-hospital-700 font-semibold"
                           >
                             Mark Read
                           </button>
                         </div>
-                        <h4 className="font-semibold text-sm text-white leading-snug">{n.title}</h4>
-                        <p className="text-xs text-slate-400">{n.message}</p>
+                        <h4 className="font-semibold text-sm text-slate-900 leading-snug">{n.title}</h4>
+                        <p className="text-xs text-slate-600">{n.message}</p>
                       </div>
                     ))
                   )}
@@ -311,6 +313,7 @@ function DashboardLayout() {
             )}
           </div>
         </header>
+
 
         {/* Dynamic Route Viewport */}
         <main className="flex-1 overflow-y-auto p-8">

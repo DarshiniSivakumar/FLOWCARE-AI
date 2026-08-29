@@ -145,3 +145,16 @@ class Notification(Base):
     message = Column(Text, nullable=False)
     read_status = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class DependencyLink(Base):
+    __tablename__ = "dependency_links"
+
+    id = Column(Integer, primary_key=True, index=True)
+    from_resource_type = Column(String, nullable=False)  # surgery, patient, operating_theatre, instrument_pack, user
+    from_resource_id = Column(Integer, nullable=False)
+    to_resource_type = Column(String, nullable=False)
+    to_resource_id = Column(Integer, nullable=False)
+    dependency_type = Column(String, nullable=False)  # must_complete_before, requires, blocks_if, shares_resource
+    link_metadata = Column(Text, nullable=True)  # JSON string with additional context
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

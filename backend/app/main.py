@@ -22,6 +22,9 @@ from .engine import process_workflow_event, run_pipeline_for_all_active_surgerie
 from .copilot import query_copilot
 from .websocket import manager
 from .seed import seed_all
+from .simulation import DependencyGraphBuilder, Resource, ResourceType, HospitalState, SimulationEngine
+
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -423,3 +426,60 @@ async def trigger_scenario_endpoint(scenario: str, db: Session = Depends(get_db)
         "data": live_state
     })
     return {"status": "success", "message": f"Scenario {scenario} triggered and logic computed."}
+
+# --- Simulation & Workflow Dependency Graph Endpoints ---
+
+@app.get("/simulation/dependency-graph")
+def get_simulation_dependency_graph(db: Session = Depends(get_db)):
+    graph = DependencyGraphBuilder.build_from_database(db)
+    return graph.to_dict()
+
+@app.get("/simulation/surgeries/{id}/dependency-tree")
+def get_surgery_dependency_tree(id: int, db: Session = Depends(get_db)):
+    graph = DependencyGraphBuilder.build_from_database(db)
+    surgery_res = Resource(ResourceType.SURGERY, id)
+    return graph.get_surgery_tree(surgery_res)
+
+@app.post("/simulation/impact-analysis")
+def analyze_resource_impact(req: Dict[str, Any], db: Session = Depends(get_db)):
+    res_type_str = req.get("resource_type", "surgery")
+    res_id = req.get("resource_id")
+    if not res_id:
+        raise HTTPException(status_code=400, detail="resource_id is required")
+    
+    try:
+        res_type = ResourceType(res_type_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid resource_type: {res_type_str}")
+        
+    graph = DependencyGraphBuilder.build_from_database(db)
+    target_res = Resource(res_type, res_id)
+    affected = graph.find_affected_resources(target_res)
+    affected_surgeries = graph.find_affected_surgeries(target_res)
+    
+    return {
+        "resource": target_res.to_dict(),
+        "direct_affected": [r.to_dict() for r in affected["direct"]],
+        "cascading_affected": [r.to_dict() for r in affected["cascading"]],
+        "reverse_affected": [r.to_dict() for r in affected["reverse_affected"]],
+        "affected_surgeries": [r.to_dict() for r in affected_surgeries]
+    }
+
+@app.post("/simulation/run-whatif")
+def run_whatif_simulation(req: Dict[str, Any], db: Session = Depends(get_db)):
+    scenario_type = req.get("scenario_type")
+    params = req.get("params", {})
+    
+    if not scenario_type:
+        raise HTTPException(status_code=400, detail="scenario_type is required")
+        
+    try:
+        hospital_state = HospitalState.capture_from_db(db)
+        graph = DependencyGraphBuilder.build_from_database(db)
+        engine = SimulationEngine(hospital_state, graph)
+        result = engine.run_simulation(scenario_type, params)
+        return result.to_dict()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
