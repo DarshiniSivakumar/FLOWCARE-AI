@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 from typing import List, Dict, Any
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
@@ -18,8 +19,9 @@ from .schemas import (
     CopilotRequest, CopilotResponse
 )
 from .auth import verify_password, create_access_token, get_password_hash, get_current_user, RoleChecker
-from .engine import process_workflow_event, run_pipeline_for_all_active_surgeries
+from .engine import process_workflow_event, run_pipeline_for_all_active_surgeries, trigger_realtime_update
 from .copilot import query_copilot
+from .ml import get_model_evaluation, predict_delay_from_dict
 from .websocket import manager
 from .seed import seed_all
 from .simulation import DependencyGraphBuilder, Resource, ResourceType, HospitalState, SimulationEngine
@@ -324,6 +326,46 @@ def copilot_endpoint(req: CopilotRequest, db: Session = Depends(get_db), current
         "answer": result["answer"],
         "retrieved_data": result["retrieved_data"]
     }
+
+# --- ML Model Evaluation Endpoints (Judge Showcase) ---
+
+@app.get("/ai/ml-evaluation")
+def get_ml_evaluation_endpoint():
+    """
+    Returns full ML model evaluation metrics for the judge showcase:
+    - R² score (train & test)
+    - MAE and RMSE on held-out test set
+    - Risk classification accuracy
+    - Feature importances (from Random Forest)
+    - Risk distribution of predictions
+    - Sample predicted vs actual records
+    """
+    return get_model_evaluation()
+
+@app.post("/ai/predict-demo")
+def predict_demo_endpoint(req: Dict[str, Any]):
+    """
+    Live prediction demo endpoint.
+    Accepts surgery parameters and returns real-time ML prediction with risk level and confidence.
+    Used by the judge showcase interactive demo panel.
+    """
+    try:
+        result = predict_delay_from_dict(req)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Prediction failed: {str(e)}")
+
+@app.post("/ai/retrain")
+def retrain_model_endpoint():
+    """
+    Triggers a full model retrain on fresh synthetic data and returns new evaluation metrics.
+    """
+    from .ml import train_model
+    try:
+        metrics = train_model()
+        return {"status": "success", "message": "Model retrained successfully.", "metrics": metrics}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Retraining failed: {str(e)}")
 
 # --- Analytics Endpoints ---
 

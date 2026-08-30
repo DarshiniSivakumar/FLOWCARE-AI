@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation,
 
 import { 
   LayoutDashboard, Activity, Users, ClipboardList, Package, 
-  BarChart3, MessageSquare, Settings, LogOut, Bell, User as UserIcon
+  BarChart3, MessageSquare, Settings, LogOut, Bell, User as UserIcon, BrainCircuit
 } from 'lucide-react';
 
 import { api } from './services/api';
@@ -18,6 +18,7 @@ import CSSD from './pages/CSSD';
 import Analytics from './pages/Analytics';
 import Copilot from './pages/Copilot';
 import SettingsPage from './pages/Settings';
+import MLModel from './pages/MLModel';
 import { User, Notification, Recommendation } from './types';
 
 interface AppContextType {
@@ -203,6 +204,7 @@ function DashboardLayout() {
     { name: 'CSSD Tracker', path: '/cssd', icon: Package },
     { name: 'Analytics Insights', path: '/analytics', icon: BarChart3 },
     { name: 'AI Copilot', path: '/ai-copilot', icon: MessageSquare },
+    { name: 'ML Model', path: '/ml-model', icon: BrainCircuit },
     { name: 'Demo Simulator', path: '/settings', icon: Settings },
   ];
 
@@ -349,6 +351,7 @@ function DashboardLayout() {
             <Route path="/cssd" element={<CSSD />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/ai-copilot" element={<Copilot />} />
+            <Route path="/ml-model" element={<MLModel />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
