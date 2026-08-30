@@ -46,7 +46,8 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [liveState, setLiveState] = useState<any>(null);
-  const [wsStatus, setWsStatus] = useState<'connecting' | 'open' | 'closed'>('connecting');
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'open' | 'closed'>('closed');
+  const [wsDisplayStatus, setWsDisplayStatus] = useState<'connecting' | 'open' | 'closed'>('connecting');
   const [reloadCounter, setReloadCounter] = useState(0);
 
   const triggerReload = () => setReloadCounter(prev => prev + 1);
@@ -74,6 +75,22 @@ export default function App() {
     loadState();
   }, [user, reloadCounter]);
 
+  // Debounce display status so rapid connecting/closed flickers don't reach the UI
+  useEffect(() => {
+    if (wsStatus === 'open') {
+      setWsDisplayStatus('open');
+      return;
+    }
+    if (wsStatus === 'closed') {
+      // Delay showing DISCONNECTED slightly to avoid brief flicker during reconnect
+      const t = setTimeout(() => setWsDisplayStatus('closed'), 1500);
+      return () => clearTimeout(t);
+    }
+    // 'connecting' — only show after 1.5s so brief reconnects are invisible
+    const t = setTimeout(() => setWsDisplayStatus('connecting'), 1500);
+    return () => clearTimeout(t);
+  }, [wsStatus]);
+
   // Connect to WebSockets
   useEffect(() => {
     if (!user) return;
@@ -83,12 +100,17 @@ export default function App() {
       .replace('https://', 'wss://') + '/ws';
       
     let socket: WebSocket;
+    let reconnectDelay = 5000; // Start at 5s, grows with back-off
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let destroyed = false;
     
     const connectWs = () => {
+      if (destroyed) return;
       setWsStatus('connecting');
       socket = new WebSocket(wsUrl);
       
       socket.onopen = () => {
+        reconnectDelay = 5000; // reset back-off on success
         setWsStatus('open');
         console.log("WebSocket connected to FlowCare Event Stream.");
       };
@@ -113,20 +135,26 @@ export default function App() {
       };
       
       socket.onclose = () => {
+        if (destroyed) return;
         setWsStatus('closed');
-        console.warn("WebSocket closed. Attempting reconnect in 5s...");
-        setTimeout(connectWs, 5000);
+        console.warn(`WebSocket closed. Reconnecting in ${reconnectDelay / 1000}s...`);
+        reconnectTimer = setTimeout(() => {
+          reconnectDelay = Math.min(reconnectDelay * 1.5, 30000); // exponential back-off, cap at 30s
+          connectWs();
+        }, reconnectDelay);
       };
       
       socket.onerror = (err) => {
-        console.error("WebSocket encountered error:", err);
-        socket.close();
+        // Don't call socket.close() here — onclose fires automatically after onerror
+        console.error("WebSocket error:", err);
       };
     };
 
     connectWs();
     
     return () => {
+      destroyed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       if (socket) socket.close();
     };
   }, [user]);
@@ -135,7 +163,7 @@ export default function App() {
     <AppContext.Provider value={{
       user, setUser, notifications, setNotifications,
       recommendations, setRecommendations, liveState, setLiveState,
-      wsStatus, triggerReload
+      wsStatus: wsDisplayStatus, triggerReload
     }}>
       <Router>
         <Routes>
@@ -254,14 +282,7 @@ function DashboardLayout() {
       {/* Main Content Pane */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className={`w-2.5 h-2.5 rounded-full ${wsStatus === 'open' ? 'bg-emerald-500 animate-pulse' : wsStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'}`} />
-            <span className="text-xs text-slate-600 uppercase font-mono font-semibold">
-              Live Stream: {wsStatus === 'open' ? 'CONNECTED' : wsStatus === 'connecting' ? 'CONNECTING...' : 'DISCONNECTED'}
-            </span>
-          </div>
-
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-end px-8 shrink-0 shadow-sm">
           {/* Actions: Notifications */}
           <div className="relative">
             <button 
