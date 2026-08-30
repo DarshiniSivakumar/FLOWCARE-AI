@@ -274,14 +274,95 @@ export const api = {
   getNotifications: () => request('/notifications').catch(() => MOCK_NOTIFICATIONS),
   readNotification: (id: number) => request(`/notifications/${id}/read`, { method: 'PUT' }).catch(() => ({ status: 'success' })),
 
-  // Copilot
-  askCopilot: (question: string) => request('/ai/copilot', {
-    method: 'POST',
-    body: JSON.stringify({ question }),
-  }).catch(() => ({
-    answer: `FlowCare AI Analysis: Based on current hospital digital twin status for query '${question}', OT-03 is experiencing a 25-minute delay due to prolonged trauma surgery. Recommended action is reassigning upcoming case S101 to available OT-01.`,
-    retrieved_data: { query: question, active_ots: MOCK_OTS, timestamp: new Date().toISOString() }
-  })),
+  // Copilot — tries backend first, falls back to direct Groq API call
+  askCopilot: async (question: string) => {
+    // 1. Try the backend first (has full live DB access)
+    try {
+      return await request('/ai/copilot', {
+        method: 'POST',
+        body: JSON.stringify({ question }),
+      });
+    } catch (_backendErr) {
+      // Backend unavailable — call Groq directly from the browser
+    }
+
+    // 2. Build a live context snapshot from currently loaded mock/live data
+    const liveOts = MOCK_OTS.map(o =>
+      `- ${o.name}: status=${o.status}, utilization=${o.utilization}%, procedure=${o.current_surgery || 'None'}`
+    ).join('\n');
+
+    const liveSurgeries = MOCK_SURGERIES.map(s =>
+      `- Surgery #${s.id} | ${s.surgery_type} | Patient: ${s.patient?.name ?? 'Unknown'} (${s.patient?.patient_code ?? '?'}) | OT: ${s.assigned_ot} | Status: ${s.status} | Urgency: ${s.urgency_level}`
+    ).join('\n');
+
+    const livePacks = MOCK_CSSD_PACKS.reduce((acc: Record<string, number>, p) => {
+      acc[p.sterilization_status] = (acc[p.sterilization_status] || 0) + 1;
+      return acc;
+    }, {});
+    const cssdSummary = Object.entries(livePacks).map(([s, c]) => `  - ${s}: ${c}`).join('\n');
+
+    const liveAlerts = MOCK_NOTIFICATIONS.map(n =>
+      `- [${n.severity}] ${n.title}: ${n.message}`
+    ).join('\n');
+
+    const liveRecs = MOCK_RECOMMENDATIONS.map(r =>
+      `- [${r.priority}] ${r.recommendation_type}: ${r.message}`
+    ).join('\n');
+
+    const hospitalContext = `=== LIVE FLOWCARE HOSPITAL DIGITAL TWIN STATE ===
+
+## Operating Theatres
+${liveOts}
+
+## Active Surgeries
+${liveSurgeries}
+
+## CSSD Instrument Packs
+${cssdSummary}
+
+## Active Alerts
+${liveAlerts}
+
+## Pending AI Recommendations
+${liveRecs}`;
+
+    const GROQ_API_KEY = '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';
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'qwen/qwen3.8-27b',
+        messages: [
+          {
+            role: 'system',
+            content: `You are FlowCare AI Copilot, an expert hospital operations assistant embedded in a surgical workflow management system.
+You are given LIVE hospital state data from the FlowCare Digital Twin, including operating theatre statuses, active surgeries with patient readiness, CSSD instrument inventory, AI risk predictions, and pending recommendations.
+Analyze this real-time data and answer the user's operational question clearly and concisely.
+Use markdown formatting (headers, bullet points, bold for key values). Be actionable. Never fabricate data not shown.`
+          },
+          {
+            role: 'user',
+            content: `${hospitalContext}\n\n=== OPERATOR QUESTION ===\n${question}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 1024,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const answer = data.choices?.[0]?.message?.content?.trim() ?? 'Sorry, I could not generate a response.';
+
+    return { answer, retrieved_data: { source: 'groq_direct', model: 'qwen/qwen3.8-27b' } };
+  },
 
   // Analytics
   getOtUtilizationAnalytics: () => request('/analytics/ot-utilization').catch(() => ({

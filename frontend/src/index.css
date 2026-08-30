@@ -23,3 +23,12 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+@keyframes bounce-in {
+  0% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+  60% { transform: translateX(-50%) translateY(4px); }
+  100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.35s ease-out both;
+}
